@@ -16,12 +16,19 @@ class PublicProfessionalSerializer(serializers.ModelSerializer):
     nunca telefone pessoal, agenda interna ou dados de clientes."""
 
     specialties = SpecialtySerializer(many=True, read_only=True)
-    services = PublicServiceSerializer(many=True, read_only=True)
+    services = serializers.SerializerMethodField()
 
     class Meta:
         model = Professional
         fields = ["slug", "full_name", "bio", "photo_url", "registration", "specialties", "services"]
         read_only_fields = fields
+
+    def get_services(self, obj):
+        # ponytail: cap simples em vez de paginacao de verdade pra esse
+        # sub-recurso aninhado; se um profissional passar disso, promover
+        # pra endpoint proprio GET /public/professionals/{slug}/services
+        # com paginacao de listagem normal.
+        return PublicServiceSerializer(obj.services.all()[:50], many=True).data
 
 
 class PublicProfileUpdateSerializer(serializers.ModelSerializer):

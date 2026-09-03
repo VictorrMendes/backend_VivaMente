@@ -1,8 +1,16 @@
+from django.contrib.postgres.constraints import ExclusionConstraint
+from django.contrib.postgres.fields import DateTimeRangeField, RangeOperators
 from django.db import models
+from django.db.models import Func
 
 from apps.clients.models import Client
 from apps.professionals.models import Professional
 from apps.services.models import Service
+
+
+class TsTzRange(Func):
+    function = "TSTZRANGE"
+    output_field = DateTimeRangeField()
 
 
 class AvailabilitySlot(models.Model):
@@ -51,6 +59,21 @@ class Appointment(models.Model):
         ordering = ["-starts_at"]
         indexes = [
             models.Index(fields=["professional", "starts_at"], name="idx_appointments_prof_time")
+        ]
+        constraints = [
+            # Garantia no banco (nao so no serializer/services.py) contra
+            # 2 agendamentos sobrepostos do mesmo profissional. Exclui
+            # CANCELLED da checagem via `condition`. Precisa da extensao
+            # btree_gist (ver migration) pra combinar igualdade de FK com
+            # overlap de range no mesmo indice GiST.
+            ExclusionConstraint(
+                name="exclude_overlapping_appointments",
+                expressions=[
+                    ("professional", RangeOperators.EQUAL),
+                    (TsTzRange("starts_at", "ends_at"), RangeOperators.OVERLAPS),
+                ],
+                condition=~models.Q(status="CANCELLED"),
+            ),
         ]
 
     def __str__(self):

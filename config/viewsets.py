@@ -4,17 +4,21 @@ from rest_framework.response import Response
 from .responses import envelope
 
 
-class EnvelopeModelViewSet(viewsets.ModelViewSet):
-    """ModelViewSet que responde no envelope padrao {data, meta} da API.
-
-    `list` fica por conta da paginacao (ja gera {data, pagination}) e
-    `destroy` continua 204 sem corpo — so retrieve/create/update precisam
-    do envelope.
-    """
+class EnvelopeRetrieveMixin:
+    """`retrieve` no envelope padrao {data, meta}. `list` fica por conta da
+    paginacao (ja gera {data, pagination})."""
 
     def retrieve(self, request, *args, **kwargs):
         serializer = self.get_serializer(self.get_object())
         return Response(envelope(serializer.data, request))
+
+
+class EnvelopeModelViewSet(EnvelopeRetrieveMixin, viewsets.ModelViewSet):
+    """ModelViewSet que responde no envelope padrao {data, meta} da API.
+
+    `destroy` continua 204 sem corpo — so retrieve/create/update precisam
+    do envelope.
+    """
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

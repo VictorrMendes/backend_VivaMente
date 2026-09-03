@@ -1,10 +1,9 @@
-from rest_framework.exceptions import PermissionDenied
-
 from apps.accounts.models import User
-from apps.professionals.models import Professional
+from apps.audit.services import log_action
 from config.mixins import ProfessionalScopedQuerysetMixin
 from config.viewsets import EnvelopeModelViewSet
 
+from . import services
 from .models import Client
 from .serializers import ClientSelfWriteSerializer, ClientSerializer, ClientWriteSerializer
 
@@ -22,11 +21,9 @@ class ClientViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
         return ClientWriteSerializer
 
     def perform_create(self, serializer):
-        user = self.request.user
-        if user.role == User.ADMIN:
-            serializer.save()
-            return
-        professional = Professional.objects.filter(user=user).first()
-        if professional is None:
-            raise PermissionDenied("Você precisa ter um perfil profissional antes de criar clientes.")
-        serializer.save(professional=professional)
+        services.create_client(self.request.user, serializer)
+        log_action(self.request.user, "create", "client", serializer.instance.id)
+
+    def perform_destroy(self, instance):
+        log_action(self.request.user, "delete", "client", instance.id)
+        instance.delete()

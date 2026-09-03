@@ -5,6 +5,7 @@ from apps.accounts.permissions import IsAdmin
 from config.mixins import ProfessionalScopedQuerysetMixin
 from config.viewsets import EnvelopeModelViewSet
 
+from . import services
 from .models import Professional, Specialty
 from .serializers import (
     ProfessionalSelfUpdateSerializer,
@@ -31,6 +32,12 @@ class ProfessionalViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet)
         if self.action in ("create", "destroy"):
             return [IsAuthenticated(), IsAdmin()]
         return [IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        services.create_professional(self.request.user, serializer)
+
+    def perform_destroy(self, instance):
+        services.delete_professional(self.request.user, instance)
 
 
 class SpecialtyViewSet(EnvelopeModelViewSet):

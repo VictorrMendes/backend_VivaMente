@@ -1,15 +1,12 @@
 from django.core.cache import cache
-from django.test import override_settings
-from rest_framework.test import APITestCase
 
-from apps.accounts.dev_tokens import create_dev_token
 from apps.accounts.models import User
 from apps.professionals.models import Professional, Specialty
 from apps.services.models import Service
+from tests.base import AuthenticatedAPITestCase
 
 
-@override_settings(DEBUG=True)
-class PublicProfessionalProfileTests(APITestCase):
+class PublicProfessionalProfileTests(AuthenticatedAPITestCase):
     def setUp(self):
         cache.clear()
         self.therapist = User.objects.create(firebase_uid="ther-a", email="a@teste.com", role=User.THERAPIST)
@@ -31,10 +28,6 @@ class PublicProfessionalProfileTests(APITestCase):
             user=self.other_therapist, slug="terapeuta-privada", full_name="Privada", is_public=False
         )
 
-    def _login(self, user):
-        token = create_dev_token(user.firebase_uid, user.email, user.role)
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
-
     def test_public_profile_visible_without_auth(self):
         response = self.client.get("/api/v1/public/professionals/terapeuta-publica")
         self.assertEqual(response.status_code, 200)
@@ -54,7 +47,7 @@ class PublicProfessionalProfileTests(APITestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_therapist_updates_own_public_profile(self):
-        self._login(self.therapist)
+        self.login(self.therapist)
         response = self.client.patch(
             f"/api/v1/professionals/{self.professional.id}/public-profile",
             {"bio": "Nova bio publica", "is_public": False},
@@ -66,7 +59,7 @@ class PublicProfessionalProfileTests(APITestCase):
         self.assertFalse(self.professional.is_public)
 
     def test_therapist_cannot_update_others_public_profile(self):
-        self._login(self.other_therapist)
+        self.login(self.other_therapist)
         response = self.client.patch(
             f"/api/v1/professionals/{self.professional.id}/public-profile", {"bio": "Hackeado"}, format="json"
         )
@@ -75,7 +68,7 @@ class PublicProfessionalProfileTests(APITestCase):
         self.assertEqual(self.professional.bio, "Bio publica")
 
     def test_admin_can_update_any_public_profile(self):
-        self._login(self.admin)
+        self.login(self.admin)
         response = self.client.patch(
             f"/api/v1/professionals/{self.professional.id}/public-profile", {"bio": "Editado pelo admin"}, format="json"
         )
