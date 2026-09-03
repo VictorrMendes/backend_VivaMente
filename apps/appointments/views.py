@@ -7,6 +7,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
+from apps.audit.services import log_action
 from apps.professionals.models import Professional
 from config.mixins import ProfessionalScopedQuerysetMixin
 from config.responses import envelope
@@ -73,6 +74,7 @@ class AppointmentViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
     def _transition(self, request, new_status):
         appointment = self.get_object()
         services.transition_status(appointment, new_status)
+        log_action(request.user, new_status.lower(), "appointment", appointment.id)
         return Response(envelope(AppointmentSerializer(appointment).data, request))
 
 

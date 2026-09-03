@@ -6,6 +6,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
+from apps.audit.services import log_action
 from apps.clients.models import Client
 from apps.clients.serializers import ClientSerializer
 from apps.professionals.models import Professional
@@ -68,6 +69,7 @@ class LeadViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
         )
         lead.status = Lead.CONVERTED
         lead.save(update_fields=["status", "updated_at"])
+        log_action(request.user, "convert", "lead", lead.id, {"client_id": client.id})
         return Response(envelope(ClientSerializer(client).data, request), status=201)
 
 
