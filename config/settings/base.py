@@ -98,6 +98,9 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "config.exceptions.rfc9457_exception_handler",
+    "DEFAULT_THROTTLE_RATES": {
+        "public-appointment-requests": "10/min",
+    },
 }
 
 SPECTACULAR_SETTINGS = {
