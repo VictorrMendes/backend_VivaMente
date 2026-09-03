@@ -1,7 +1,7 @@
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import User
-from apps.professionals.models import Professional
+from config.mixins import resolve_own_professional_or_403
 
 from .models import Appointment
 
@@ -13,18 +13,11 @@ ALLOWED_TRANSITIONS = {
 }
 
 
-def _own_professional_or_403(user):
-    professional = Professional.objects.filter(user=user).first()
-    if professional is None:
-        raise PermissionDenied("Você precisa ter um perfil profissional antes de gerenciar este recurso.")
-    return professional
-
-
 def create_availability_slot(user, serializer):
     if user.role == User.ADMIN:
         serializer.save()
         return
-    serializer.save(professional=_own_professional_or_403(user))
+    serializer.save(professional=resolve_own_professional_or_403(user))
 
 
 def _validate_ownership(professional, client, service):
@@ -44,7 +37,7 @@ def create_appointment(user, serializer):
         serializer.save()
         return
 
-    professional = _own_professional_or_403(user)
+    professional = resolve_own_professional_or_403(user)
     _validate_ownership(professional, client, service)
     serializer.save(professional=professional)
 

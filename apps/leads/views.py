@@ -1,19 +1,16 @@
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
-from apps.audit.services import log_action
-from apps.clients.models import Client
 from apps.clients.serializers import ClientSerializer
-from apps.professionals.models import Professional
 from config.mixins import ProfessionalScopedQuerysetMixin
 from config.responses import envelope
 from config.viewsets import EnvelopeModelViewSet
 
+from . import services
 from .models import Lead
 from .serializers import (
     LeadSelfWriteSerializer,
@@ -37,14 +34,7 @@ class LeadViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
         return LeadWriteSerializer
 
     def perform_create(self, serializer):
-        user = self.request.user
-        if user.role == User.ADMIN:
-            serializer.save()
-            return
-        professional = Professional.objects.filter(user=user).first()
-        if professional is None:
-            raise PermissionDenied("Você precisa ter um perfil profissional antes de criar leads.")
-        serializer.save(professional=professional)
+        services.create_lead(self.request.user, serializer)
 
     @action(detail=True, methods=["patch"], url_path="status")
     def set_status(self, request, pk=None):
@@ -57,19 +47,7 @@ class LeadViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
     @action(detail=True, methods=["post"])
     def convert(self, request, pk=None):
         lead = self.get_object()
-        if lead.status == Lead.CONVERTED:
-            raise ValidationError({"status": "Lead já foi convertido."})
-
-        client = Client.objects.create(
-            professional=lead.professional,
-            lead=lead,
-            name=lead.name,
-            email=lead.email,
-            phone=lead.phone,
-        )
-        lead.status = Lead.CONVERTED
-        lead.save(update_fields=["status", "updated_at"])
-        log_action(request.user, "convert", "lead", lead.id, {"client_id": client.id})
+        client = services.convert_to_client(request.user, lead)
         return Response(envelope(ClientSerializer(client).data, request), status=201)
 
 

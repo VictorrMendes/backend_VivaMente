@@ -1,4 +1,18 @@
+from rest_framework.exceptions import PermissionDenied
+
 from apps.accounts.models import User
+from apps.professionals.models import Professional
+
+
+def resolve_own_professional_or_403(user):
+    """Resolve o Professional do terapeuta autenticado; nega (403) se ele
+    ainda nao tiver um perfil profissional. Usado quando um recurso exige
+    dono (service, lead, client, appointment...) e quem pede nao e ADMIN,
+    entao so pode agir em nome do proprio professional."""
+    professional = Professional.objects.filter(user=user).first()
+    if professional is None:
+        raise PermissionDenied("Você precisa ter um perfil profissional antes de gerenciar este recurso.")
+    return professional
 
 
 class ProfessionalScopedQuerysetMixin:
