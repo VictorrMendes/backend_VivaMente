@@ -56,7 +56,8 @@ class ProfessionalWriteSerializer(serializers.ModelSerializer):
 
 
 class ProfessionalSelfUpdateSerializer(ProfessionalWriteSerializer):
-    """Terapeuta edita o proprio registro, mas nunca troca o `user` dono."""
+    """Terapeuta edita o proprio registro, mas nunca troca o `user` dono
+    (campo continua visivel na resposta, so vira read-only)."""
 
     class Meta(ProfessionalWriteSerializer.Meta):
-        fields = [f for f in ProfessionalWriteSerializer.Meta.fields if f != "user"]
+        read_only_fields = ProfessionalWriteSerializer.Meta.read_only_fields + ["user"]

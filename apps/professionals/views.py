@@ -2,6 +2,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from apps.accounts.models import User
 from apps.accounts.permissions import IsAdmin
+from config.mixins import ProfessionalScopedQuerysetMixin
 from config.viewsets import EnvelopeModelViewSet
 
 from .models import Professional, Specialty
@@ -13,15 +14,11 @@ from .serializers import (
 )
 
 
-class ProfessionalViewSet(EnvelopeModelViewSet):
+class ProfessionalViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
+    professional_lookup = "user"
+    queryset = Professional.objects.all()
     filterset_fields = ["is_public"]
     ordering_fields = ["full_name", "created_at"]
-
-    def get_queryset(self):
-        user = self.request.user
-        if user.role == User.ADMIN:
-            return Professional.objects.all()
-        return Professional.objects.filter(user=user)
 
     def get_serializer_class(self):
         if self.action in ("list", "retrieve"):
