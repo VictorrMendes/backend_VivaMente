@@ -78,6 +78,29 @@ class LeadIsolationTests(APITestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["data"]["status"], "NEW")
 
+    def test_convert_creates_client_and_marks_lead_converted(self):
+        from apps.clients.models import Client
+
+        self._login(self.therapist_a)
+        response = self.client.post(f"/api/v1/leads/{self.lead_a.id}/convert")
+        self.assertEqual(response.status_code, 201)
+        self.lead_a.refresh_from_db()
+        self.assertEqual(self.lead_a.status, "CONVERTED")
+        client = Client.objects.get(lead=self.lead_a)
+        self.assertEqual(client.name, "Lead A")
+        self.assertEqual(client.professional, self.prof_a)
+
+    def test_cannot_convert_lead_twice(self):
+        self._login(self.therapist_a)
+        self.client.post(f"/api/v1/leads/{self.lead_a.id}/convert")
+        response = self.client.post(f"/api/v1/leads/{self.lead_a.id}/convert")
+        self.assertEqual(response.status_code, 400)
+
+    def test_therapist_cannot_convert_others_lead(self):
+        self._login(self.therapist_a)
+        response = self.client.post(f"/api/v1/leads/{self.lead_b.id}/convert")
+        self.assertEqual(response.status_code, 404)
+
 
 @override_settings(DEBUG=True)
 class PublicAppointmentRequestTests(APITestCase):

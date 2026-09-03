@@ -1,11 +1,13 @@
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
+from apps.clients.models import Client
+from apps.clients.serializers import ClientSerializer
 from apps.professionals.models import Professional
 from config.mixins import ProfessionalScopedQuerysetMixin
 from config.responses import envelope
@@ -50,6 +52,23 @@ class LeadViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(envelope(LeadSerializer(lead).data, request))
+
+    @action(detail=True, methods=["post"])
+    def convert(self, request, pk=None):
+        lead = self.get_object()
+        if lead.status == Lead.CONVERTED:
+            raise ValidationError({"status": "Lead já foi convertido."})
+
+        client = Client.objects.create(
+            professional=lead.professional,
+            lead=lead,
+            name=lead.name,
+            email=lead.email,
+            phone=lead.phone,
+        )
+        lead.status = Lead.CONVERTED
+        lead.save(update_fields=["status", "updated_at"])
+        return Response(envelope(ClientSerializer(client).data, request), status=201)
 
 
 class PublicAppointmentRequestView(APIView):
