@@ -1,6 +1,10 @@
+import logging
 import uuid
 
+from rest_framework.response import Response
 from rest_framework.views import exception_handler
+
+logger = logging.getLogger("api.errors")
 
 PROBLEM_TYPE_BASE = "https://api.vivamenteterapias.com.br/errors/"
 
@@ -42,12 +46,27 @@ def _detail_from(data):
 
 def rfc9457_exception_handler(exc, context):
     response = exception_handler(exc, context)
-    if response is None:
-        return None
-
-    status = response.status_code
     request = context.get("request")
     request_id = getattr(request, "request_id", None) or str(uuid.uuid4())
+
+    if response is None:
+        # Excecao nao mapeada pelo DRF (bug real, nao um erro de cliente).
+        # Nunca deixa o Django devolver a pagina de debug em HTML pra um
+        # cliente de API - loga o stack trace pro request_id e responde
+        # RFC 9457 generico, sem detalhe interno.
+        logger.exception("Erro interno nao tratado", extra={"request_id": request_id})
+        return Response(
+            {
+                "type": PROBLEM_TYPE_BASE + "internal-error",
+                "title": "Internal Server Error",
+                "status": 500,
+                "detail": "Ocorreu um erro inesperado.",
+                "request_id": request_id,
+            },
+            status=500,
+        )
+
+    status = response.status_code
 
     response.data = {
         "type": PROBLEM_TYPE_BASE + _SLUGS.get(status, "error"),

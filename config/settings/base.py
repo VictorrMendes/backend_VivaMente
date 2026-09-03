@@ -7,7 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 env = environ.Env()
 environ.Env.read_env(BASE_DIR / ".env")
 
-SECRET_KEY = env("DJANGO_SECRET_KEY", default="changeme")
+SECRET_KEY = env("DJANGO_SECRET_KEY")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -16,6 +16,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.postgres",
     "rest_framework",
     "drf_spectacular",
     "corsheaders",
@@ -115,5 +116,22 @@ SPECTACULAR_SETTINGS = {
 }
 
 CORS_ALLOWED_ORIGINS = env.list("ALLOWED_ORIGINS", default=[])
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {"()": "config.logging.JsonFormatter"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "json"},
+    },
+    "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        # evita duplicar log de request/erro (django.request ja tenta
+        # logar sozinho); api.errors/api.access sao os nossos, no root.
+        "django.request": {"handlers": [], "propagate": False},
+    },
+}
 
 FIREBASE_CREDENTIALS_PATH = env("FIREBASE_CREDENTIALS_PATH", default=None)

@@ -5,6 +5,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
+from apps.audit.services import log_action
 from apps.clients.serializers import ClientSerializer
 from config.mixins import ProfessionalScopedQuerysetMixin
 from config.responses import envelope
@@ -35,6 +36,15 @@ class LeadViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
 
     def perform_create(self, serializer):
         services.create_lead(self.request.user, serializer)
+        log_action(self.request.user, "create", "lead", serializer.instance.id)
+
+    def perform_update(self, serializer):
+        services.update_lead(serializer)
+        log_action(self.request.user, "update", "lead", serializer.instance.id)
+
+    def perform_destroy(self, instance):
+        log_action(self.request.user, "delete", "lead", instance.id)
+        instance.delete()
 
     @action(detail=True, methods=["patch"], url_path="status")
     def set_status(self, request, pk=None):
@@ -42,6 +52,7 @@ class LeadViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
         serializer = LeadStatusSerializer(lead, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        log_action(request.user, "status_change", "lead", lead.id, {"status": lead.status})
         return Response(envelope(LeadSerializer(lead).data, request))
 
     @action(detail=True, methods=["post"])
@@ -61,4 +72,7 @@ class PublicAppointmentRequestView(APIView):
         serializer = PublicAppointmentRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         lead = serializer.save()
-        return Response(envelope(LeadSerializer(lead).data, request), status=201)
+        services.notify_professional_of_new_lead(lead)
+        # Confirmacao minima: nao ecoa telefone/email/mensagem que o
+        # proprio cliente acabou de enviar (achado de auditoria).
+        return Response(envelope({"id": lead.id, "status": lead.status}, request), status=201)

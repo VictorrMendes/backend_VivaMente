@@ -1,6 +1,27 @@
+from unittest.mock import MagicMock
+
+from django.test import SimpleTestCase
+
 from apps.accounts.models import User
 from apps.professionals.models import Specialty
+from config.exceptions import rfc9457_exception_handler
 from tests.base import AuthenticatedAPITestCase
+
+
+class UnhandledExceptionContractTests(SimpleTestCase):
+    """Achado da auditoria: excecoes nao mapeadas pelo DRF nao podiam vazar
+    HTML/traceback. Testa o exception handler diretamente (sem precisar
+    forcar uma view real a quebrar)."""
+
+    def test_unhandled_exception_becomes_rfc9457_500(self):
+        request = MagicMock()
+        request.request_id = "req_test123"
+        response = rfc9457_exception_handler(ZeroDivisionError("segredo interno"), {"request": request})
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(set(response.data.keys()), {"type", "title", "status", "detail", "request_id"})
+        self.assertEqual(response.data["request_id"], "req_test123")
+        self.assertEqual(response.data["status"], 500)
+        self.assertNotIn("segredo interno", response.data["detail"])
 
 
 class ErrorContractTests(AuthenticatedAPITestCase):

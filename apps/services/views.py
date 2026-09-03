@@ -1,4 +1,5 @@
 from apps.accounts.models import User
+from apps.audit.services import log_action
 from config.mixins import ProfessionalScopedQuerysetMixin
 from config.viewsets import EnvelopeModelViewSet
 
@@ -21,3 +22,8 @@ class ServiceViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
 
     def perform_create(self, serializer):
         services.create_service(self.request.user, serializer)
+        log_action(self.request.user, "create", "service", serializer.instance.id)
+
+    def perform_destroy(self, instance):
+        log_action(self.request.user, "delete", "service", instance.id)
+        instance.delete()

@@ -1,5 +1,4 @@
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -39,6 +38,11 @@ class AvailabilitySlotViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelView
 
     def perform_create(self, serializer):
         services.create_availability_slot(self.request.user, serializer)
+        log_action(self.request.user, "create", "availability_slot", serializer.instance.id)
+
+    def perform_destroy(self, instance):
+        log_action(self.request.user, "delete", "availability_slot", instance.id)
+        instance.delete()
 
 
 class AppointmentViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
@@ -55,6 +59,7 @@ class AppointmentViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
 
     def perform_create(self, serializer):
         services.create_appointment(self.request.user, serializer)
+        log_action(self.request.user, "create", "appointment", serializer.instance.id)
 
     def perform_update(self, serializer):
         services.update_appointment(serializer)
@@ -79,10 +84,6 @@ class AppointmentViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
 
 
 class PublicAvailableSlotsView(APIView):
-    """ponytail: nao cruza com agendamentos existentes, so retorna slots
-    marcados como livres (is_blocked=False) — subtrair conflitos de
-    Appointment fica para quando o volume real pedir isso."""
-
     permission_classes = [AllowAny]
     authentication_classes = []
     throttle_classes = [ScopedRateThrottle]
@@ -90,7 +91,5 @@ class PublicAvailableSlotsView(APIView):
 
     def get(self, request, slug):
         professional = get_object_or_404(Professional, slug=slug, is_public=True)
-        slots = AvailabilitySlot.objects.filter(
-            professional=professional, is_blocked=False, starts_at__gte=timezone.now()
-        ).order_by("starts_at")
+        slots = services.list_free_slots(professional)
         return Response(envelope(AvailabilitySlotSerializer(slots, many=True).data, request))
