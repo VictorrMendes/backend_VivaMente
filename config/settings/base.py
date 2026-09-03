@@ -101,6 +101,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "public-appointment-requests": "10/min",
         "public-available-slots": "20/min",
+        "public-professional-profile": "30/min",
     },
 }
 
