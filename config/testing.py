@@ -2,7 +2,7 @@ from django.conf import settings
 from django.core.management.base import CommandError
 from django.test.runner import DiscoverRunner
 
-_ALLOWED_TEST_HOSTS = {"localhost", "127.0.0.1", ""}
+_ALLOWED_TEST_HOSTS = {"localhost", "127.0.0.1", "db", ""}
 
 
 class SafeTestRunner(DiscoverRunner):
