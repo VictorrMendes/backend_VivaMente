@@ -2,15 +2,14 @@ from django.core.cache import cache
 from django.test import override_settings
 from rest_framework.test import APITestCase
 
-from apps.accounts.dev_tokens import create_dev_token
 from apps.accounts.models import User
 from apps.leads.models import Lead
 from apps.professionals.models import Professional
 from apps.services.models import Service
+from tests.base import AuthenticatedAPITestCase
 
 
-@override_settings(DEBUG=True)
-class LeadIsolationTests(APITestCase):
+class LeadIsolationTests(AuthenticatedAPITestCase):
     def setUp(self):
         self.admin = User.objects.create(firebase_uid="admin-1", email="admin@teste.com", role=User.ADMIN)
         self.therapist_a = User.objects.create(firebase_uid="ther-a", email="a@teste.com", role=User.THERAPIST)
@@ -22,29 +21,25 @@ class LeadIsolationTests(APITestCase):
         self.lead_a = Lead.objects.create(professional=self.prof_a, name="Lead A", email="lead-a@teste.com")
         self.lead_b = Lead.objects.create(professional=self.prof_b, name="Lead B", email="lead-b@teste.com")
 
-    def _login(self, user):
-        token = create_dev_token(user.firebase_uid, user.email, user.role)
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
-
     def test_therapist_lists_only_own_leads(self):
-        self._login(self.therapist_a)
+        self.login(self.therapist_a)
         response = self.client.get("/api/v1/leads")
         data = response.json()["data"]
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["name"], "Lead A")
 
     def test_admin_lists_all_leads(self):
-        self._login(self.admin)
+        self.login(self.admin)
         response = self.client.get("/api/v1/leads")
         self.assertEqual(len(response.json()["data"]), 2)
 
     def test_therapist_cannot_read_other_lead(self):
-        self._login(self.therapist_a)
+        self.login(self.therapist_a)
         response = self.client.get(f"/api/v1/leads/{self.lead_b.id}")
         self.assertEqual(response.status_code, 404)
 
     def test_therapist_creates_lead_for_self_automatically(self):
-        self._login(self.therapist_a)
+        self.login(self.therapist_a)
         response = self.client.post(
             "/api/v1/leads", {"name": "Novo lead", "email": "novo@teste.com"}, format="json"
         )
@@ -53,7 +48,7 @@ class LeadIsolationTests(APITestCase):
         self.assertEqual(response.json()["data"]["status"], "NEW")
 
     def test_status_endpoint_advances_lead(self):
-        self._login(self.therapist_a)
+        self.login(self.therapist_a)
         response = self.client.patch(
             f"/api/v1/leads/{self.lead_a.id}/status", {"status": "CONTACTED"}, format="json"
         )
@@ -62,14 +57,14 @@ class LeadIsolationTests(APITestCase):
         self.assertEqual(self.lead_a.status, "CONTACTED")
 
     def test_therapist_cannot_set_status_of_others_lead(self):
-        self._login(self.therapist_a)
+        self.login(self.therapist_a)
         response = self.client.patch(
             f"/api/v1/leads/{self.lead_b.id}/status", {"status": "CONTACTED"}, format="json"
         )
         self.assertEqual(response.status_code, 404)
 
     def test_cannot_create_lead_with_invalid_status_via_write_serializer(self):
-        self._login(self.therapist_a)
+        self.login(self.therapist_a)
         response = self.client.post(
             "/api/v1/leads",
             {"name": "X", "email": "x@teste.com", "status": "CONVERTED"},
@@ -81,7 +76,7 @@ class LeadIsolationTests(APITestCase):
     def test_convert_creates_client_and_marks_lead_converted(self):
         from apps.clients.models import Client
 
-        self._login(self.therapist_a)
+        self.login(self.therapist_a)
         response = self.client.post(f"/api/v1/leads/{self.lead_a.id}/convert")
         self.assertEqual(response.status_code, 201)
         self.lead_a.refresh_from_db()
@@ -91,13 +86,13 @@ class LeadIsolationTests(APITestCase):
         self.assertEqual(client.professional, self.prof_a)
 
     def test_cannot_convert_lead_twice(self):
-        self._login(self.therapist_a)
+        self.login(self.therapist_a)
         self.client.post(f"/api/v1/leads/{self.lead_a.id}/convert")
         response = self.client.post(f"/api/v1/leads/{self.lead_a.id}/convert")
         self.assertEqual(response.status_code, 400)
 
     def test_therapist_cannot_convert_others_lead(self):
-        self._login(self.therapist_a)
+        self.login(self.therapist_a)
         response = self.client.post(f"/api/v1/leads/{self.lead_b.id}/convert")
         self.assertEqual(response.status_code, 404)
 

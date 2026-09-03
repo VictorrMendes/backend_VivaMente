@@ -2,10 +2,10 @@ from rest_framework.permissions import IsAuthenticated
 
 from apps.accounts.models import User
 from apps.accounts.permissions import IsAdmin
-from apps.audit.services import log_action
 from config.mixins import ProfessionalScopedQuerysetMixin
 from config.viewsets import EnvelopeModelViewSet
 
+from . import services
 from .models import Professional, Specialty
 from .serializers import (
     ProfessionalSelfUpdateSerializer,
@@ -34,12 +34,10 @@ class ProfessionalViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet)
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
-        serializer.save()
-        log_action(self.request.user, "create", "professional", serializer.instance.id)
+        services.create_professional(self.request.user, serializer)
 
     def perform_destroy(self, instance):
-        log_action(self.request.user, "delete", "professional", instance.id)
-        instance.delete()
+        services.delete_professional(self.request.user, instance)
 
 
 class SpecialtyViewSet(EnvelopeModelViewSet):

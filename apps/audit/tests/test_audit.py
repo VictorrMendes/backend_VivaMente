@@ -1,10 +1,7 @@
 from datetime import timedelta
 
-from django.test import override_settings
 from django.utils import timezone
-from rest_framework.test import APITestCase
 
-from apps.accounts.dev_tokens import create_dev_token
 from apps.accounts.models import User
 from apps.appointments.models import Appointment
 from apps.audit.models import AuditLog
@@ -12,27 +9,23 @@ from apps.audit.services import log_action
 from apps.clients.models import Client
 from apps.leads.models import Lead
 from apps.professionals.models import Professional
+from tests.base import AuthenticatedAPITestCase
 
 
-@override_settings(DEBUG=True)
-class AuditLogAccessTests(APITestCase):
+class AuditLogAccessTests(AuthenticatedAPITestCase):
     def setUp(self):
         self.admin = User.objects.create(firebase_uid="admin-1", email="admin@teste.com", role=User.ADMIN)
         self.therapist = User.objects.create(firebase_uid="ther-a", email="a@teste.com", role=User.THERAPIST)
         log_action(self.admin, "create", "professional", 1)
 
-    def _login(self, user):
-        token = create_dev_token(user.firebase_uid, user.email, user.role)
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
-
     def test_admin_can_list_audit_logs(self):
-        self._login(self.admin)
+        self.login(self.admin)
         response = self.client.get("/api/v1/audit-logs")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json()["data"]), 1)
 
     def test_therapist_cannot_list_audit_logs(self):
-        self._login(self.therapist)
+        self.login(self.therapist)
         response = self.client.get("/api/v1/audit-logs")
         self.assertEqual(response.status_code, 403)
 
@@ -41,8 +34,7 @@ class AuditLogAccessTests(APITestCase):
         self.assertEqual(response.status_code, 401)
 
 
-@override_settings(DEBUG=True)
-class AuditEventsRecordedTests(APITestCase):
+class AuditEventsRecordedTests(AuthenticatedAPITestCase):
     """Confirma que eventos relevantes (docs/back.md secao 11: "auditoria
     gravando eventos relevantes") realmente geram um AuditLog, nao so que
     o endpoint de leitura existe."""
@@ -50,8 +42,7 @@ class AuditEventsRecordedTests(APITestCase):
     def setUp(self):
         self.admin = User.objects.create(firebase_uid="admin-1", email="admin@teste.com", role=User.ADMIN)
         self.therapist = User.objects.create(firebase_uid="ther-a", email="a@teste.com", role=User.THERAPIST)
-        token = create_dev_token(self.admin.firebase_uid, self.admin.email, self.admin.role)
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        self.login(self.admin)
 
     def test_professional_create_is_audited(self):
         response = self.client.post(

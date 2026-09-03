@@ -1,19 +1,16 @@
 from datetime import timedelta
 
-from django.test import override_settings
 from django.utils import timezone
-from rest_framework.test import APITestCase
 
-from apps.accounts.dev_tokens import create_dev_token
 from apps.accounts.models import User
 from apps.appointments.models import Appointment
 from apps.clients.models import Client
 from apps.leads.models import Lead
 from apps.professionals.models import Professional
+from tests.base import AuthenticatedAPITestCase
 
 
-@override_settings(DEBUG=True)
-class DashboardMetricsTests(APITestCase):
+class DashboardMetricsTests(AuthenticatedAPITestCase):
     def setUp(self):
         self.admin = User.objects.create(firebase_uid="admin-1", email="admin@teste.com", role=User.ADMIN)
         self.therapist_a = User.objects.create(firebase_uid="ther-a", email="a@teste.com", role=User.THERAPIST)
@@ -40,12 +37,8 @@ class DashboardMetricsTests(APITestCase):
             status=Appointment.CANCELLED,
         )
 
-    def _login(self, user):
-        token = create_dev_token(user.firebase_uid, user.email, user.role)
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
-
     def test_therapist_sees_only_own_metrics(self):
-        self._login(self.therapist_a)
+        self.login(self.therapist_a)
         response = self.client.get("/api/v1/dashboard/metrics")
         self.assertEqual(response.status_code, 200)
         data = response.json()["data"]
@@ -54,14 +47,14 @@ class DashboardMetricsTests(APITestCase):
         self.assertEqual(data["sessions_this_month"], 1)
 
     def test_admin_sees_global_metrics(self):
-        self._login(self.admin)
+        self.login(self.admin)
         response = self.client.get("/api/v1/dashboard/metrics")
         data = response.json()["data"]
         self.assertEqual(data["new_leads"], 2)
         self.assertEqual(data["active_clients"], 2)
 
     def test_dashboard_alias_returns_same_shape(self):
-        self._login(self.therapist_a)
+        self.login(self.therapist_a)
         response = self.client.get("/api/v1/dashboard")
         self.assertEqual(response.status_code, 200)
         self.assertIn("new_leads", response.json()["data"])
