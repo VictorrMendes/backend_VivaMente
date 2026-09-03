@@ -100,6 +100,7 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "config.exceptions.rfc9457_exception_handler",
     "DEFAULT_THROTTLE_RATES": {
         "public-appointment-requests": "10/min",
+        "public-available-slots": "20/min",
     },
 }
 
