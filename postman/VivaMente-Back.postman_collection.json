@@ -1,0 +1,1956 @@
+{
+  "info": {
+    "_postman_id": "b1a2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+    "name": "VivaMente - Back",
+    "description": "API de negocio da VivaMente (terapeutas, clientes, leads, agendamentos). Fonte de verdade do contrato: docs/back.md + /api/schema/swagger-ui/ (gerado do codigo, sempre atualizado).\n\n## Como autenticar (ambiente local/dev)\nO Back valida o ID Token do Firebase sozinho. Enquanto o servico Oauth nao emite tokens reais, existe uma porta dos fundos SOMENTE em DEBUG=True: `POST /api/v1/dev/fake-token`.\n\nRode a pasta **1. Dev Auth** primeiro (ou clique em cada request e mande) - os tokens sao salvos automaticamente nas variaveis `{{admin_token}}` e `{{therapist_token}}` da collection, usados no resto das requests.\n\nQuando o Oauth estiver rodando de verdade, troque o valor de `{{therapist_token}}`/`{{admin_token}}` por um ID Token real do Firebase - o resto da collection continua funcionando igual.\n\n## Envelope de resposta\n- Sucesso (item): `{ \"data\": {...}, \"meta\": { \"request_id\", \"timestamp\" } }`\n- Sucesso (lista): `{ \"data\": [...], \"pagination\": { \"page\", \"per_page\", \"total\", \"total_pages\" } }`\n- Erro (RFC 9457): `{ \"type\", \"title\", \"status\", \"detail\", \"request_id\" }`\n\n## Sobre os requests de DELETE\nSao exemplos ilustrativos de cada recurso. Varias pastas dependem de IDs criados em pastas anteriores (ex.: Services/Leads/Appointments usam `{{professional_id}}` e `{{client_id}}`) - rodar um DELETE de um recurso usado mais adiante quebra o restante do fluxo se voce rodar a collection inteira via Collection Runner. Para uma exploracao segura, rode pasta por pasta e pule os DELETEs ate o final.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "therapist_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "me_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "professional_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "professional_slug",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "specialty_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "service_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lead_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "client_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "availability_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "appointment_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "notification_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "audit_log_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Dev Auth (somente DEBUG=True)",
+      "item": [
+        {
+          "name": "Gerar token de dev - ADMIN",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('admin_token', json.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/dev/fake-token",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dev",
+                "fake-token"
+              ]
+            },
+            "description": "Nunca disponivel fora de DEBUG=True. Salva o token em {{admin_token}}."
+          }
+        },
+        {
+          "name": "Gerar token de dev - THERAPIST",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('therapist_token', json.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"THERAPIST\",\n  \"uid\": \"frontend-dev-{{$timestamp}}\",\n  \"email\": \"terapeuta@teste.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/dev/fake-token",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dev",
+                "fake-token"
+              ]
+            },
+            "description": "Salva o token em {{therapist_token}}. `uid`/`email` sao opcionais - se omitidos, o servidor gera valores aleatorios."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Health",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Health database",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/health/database",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health",
+                "database"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ready",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/ready",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ready"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Me",
+      "item": [
+        {
+          "name": "GET /me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('me_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "me"
+              ]
+            },
+            "description": "Salva o id do usuario logado em {{me_id}} (usado para criar o Professional dele)."
+          }
+        },
+        {
+          "name": "PATCH /me",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"novo-email@teste.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "me"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Professionals",
+      "item": [
+        {
+          "name": "POST /professionals (cria - ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('professional_id', json.data.id);",
+                  "  pm.collectionVariables.set('professional_slug', json.data.slug);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user\": {{me_id}},\n  \"slug\": \"terapeuta-{{$timestamp}}\",\n  \"full_name\": \"Terapeuta Exemplo\",\n  \"bio\": \"Especialista em ansiedade e terapia de casal.\",\n  \"is_public\": true,\n  \"specialty_ids\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/professionals",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "professionals"
+              ]
+            },
+            "description": "Somente ADMIN cria. Salva {{professional_id}} e {{professional_slug}}. `slug` usa {{$timestamp}} do Postman pra nunca colidir em reruns."
+          }
+        },
+        {
+          "name": "GET /professionals (lista)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/professionals?page=1&per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "professionals"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "ADMIN ve todos; THERAPIST ve so o proprio."
+          }
+        },
+        {
+          "name": "GET /professionals/{id}",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/professionals/{{professional_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "professionals",
+                "{{professional_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH /professionals/{id}",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bio\": \"Bio atualizada pelo proprio terapeuta.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/professionals/{{professional_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "professionals",
+                "{{professional_id}}"
+              ]
+            },
+            "description": "Terapeuta so edita o proprio registro; campo `user` nunca pode ser trocado por ele (fica read-only)."
+          }
+        },
+        {
+          "name": "PATCH /professionals/{id}/public-profile",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bio\": \"Bio que aparece na pagina publica.\",\n  \"photo_url\": \"https://exemplo.com/foto.jpg\",\n  \"is_public\": true,\n  \"specialty_ids\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/professionals/{{professional_id}}/public-profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "professionals",
+                "{{professional_id}}",
+                "public-profile"
+              ]
+            },
+            "description": "So os campos que aparecem na pagina /[slug] da Loja."
+          }
+        },
+        {
+          "name": "DELETE /professionals/{id} (ADMIN) - CUIDADO",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/professionals/{{professional_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "professionals",
+                "{{professional_id}}"
+              ]
+            },
+            "description": "ATENCAO: as pastas de Services/Leads/Clients/Appointments abaixo dependem de {{professional_id}}. So rode isso por ultimo, depois de terminar a exploracao."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Specialties",
+      "item": [
+        {
+          "name": "POST /specialties (ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  pm.collectionVariables.set('specialty_id', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ansiedade {{$timestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/specialties",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "specialties"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /specialties (lista)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/specialties",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "specialties"
+              ]
+            },
+            "description": "Qualquer autenticado le; so ADMIN cria/edita/apaga."
+          }
+        },
+        {
+          "name": "PATCH /specialties/{id} (ADMIN)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ansiedade e panico {{$timestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/specialties/{{specialty_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "specialties",
+                "{{specialty_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE /specialties/{id} (ADMIN)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/specialties/{{specialty_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "specialties",
+                "{{specialty_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Services",
+      "item": [
+        {
+          "name": "POST /services (terapeuta cria o proprio)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  pm.collectionVariables.set('service_id', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sessao individual\",\n  \"description\": \"Sessao de 50 minutos\",\n  \"duration_minutes\": 50,\n  \"price\": \"150.00\",\n  \"modality\": \"ONLINE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/services",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "services"
+              ]
+            },
+            "description": "THERAPIST nao precisa mandar `professional` - o servidor sempre usa o do proprio terapeuta. ADMIN precisa mandar `professional` explicitamente. `modality`: ONLINE | IN_PERSON | BOTH."
+          }
+        },
+        {
+          "name": "GET /services (lista)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/services",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "services"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH /services/{id}",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": \"180.00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/services/{{service_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "services",
+                "{{service_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE /services/{id}",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/services/{{service_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "services",
+                "{{service_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Leads",
+      "item": [
+        {
+          "name": "POST /leads (cria)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  pm.collectionVariables.set('lead_id', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lead Exemplo\",\n  \"email\": \"lead@teste.com\",\n  \"phone\": \"+55 11 90000-0000\",\n  \"message\": \"Quero agendar uma sessao\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/leads",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "leads"
+              ]
+            },
+            "description": "Uso interno (Plataforma). Sempre nasce com status NEW."
+          }
+        },
+        {
+          "name": "GET /leads (lista, filtro por status)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/leads?status=NEW",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "leads"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "NEW"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /leads/{id}",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/leads/{{lead_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "leads",
+                "{{lead_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH /leads/{id}/status (avanca status)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CONTACTED\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/leads/{{lead_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "leads",
+                "{{lead_id}}",
+                "status"
+              ]
+            },
+            "description": "Valores: NEW, CONTACTED, AWAITING_RESPONSE, SCHEDULED, CONVERTED."
+          }
+        },
+        {
+          "name": "POST /leads/{id}/convert (vira Client)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  pm.collectionVariables.set('client_id', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/leads/{{lead_id}}/convert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "leads",
+                "{{lead_id}}",
+                "convert"
+              ]
+            },
+            "description": "Sem corpo. Cria um Client a partir do Lead e salva {{client_id}}. So funciona uma vez por lead (400 se repetir)."
+          }
+        },
+        {
+          "name": "DELETE /leads/{id}",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/leads/{{lead_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "leads",
+                "{{lead_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Public (sem autenticacao - Loja)",
+      "item": [
+        {
+          "name": "POST /public/appointment-requests",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"professionalSlug\": \"{{professional_slug}}\",\n  \"name\": \"Cliente Publico\",\n  \"email\": \"publico@teste.com\",\n  \"phone\": \"+55 11 98888-7777\",\n  \"message\": \"Gostaria de mais informacoes\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/appointment-requests",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "appointment-requests"
+              ]
+            },
+            "description": "Sem token. `service` e `preferredSlot` sao opcionais. Cria um Lead com status NEW e notifica o terapeuta. Resposta e minima ({id, status}) - nao ecoa os dados de contato enviados. Rate limit: 10/min por IP."
+          }
+        },
+        {
+          "name": "GET /public/professionals/{slug}",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/professionals/{{professional_slug}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "professionals",
+                "{{professional_slug}}"
+              ]
+            },
+            "description": "So funciona se o profissional tiver is_public=true. Rate limit: 30/min por IP."
+          }
+        },
+        {
+          "name": "GET /public/professionals/{slug}/available-slots",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/professionals/{{professional_slug}}/available-slots",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "professionals",
+                "{{professional_slug}}",
+                "available-slots"
+              ]
+            },
+            "description": "So horarios livres (nao bloqueados e sem agendamento conflitante). Rate limit: 20/min por IP."
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Clients",
+      "item": [
+        {
+          "name": "GET /clients (lista)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "clients"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /clients/{id}",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients/{{client_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "clients",
+                "{{client_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /clients (cria direto, sem lead)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Direto\",\n  \"email\": \"direto@teste.com\",\n  \"phone\": \"+55 11 97777-6666\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "clients"
+              ]
+            },
+            "description": "Nao sobrescreve {{client_id}} - so um exemplo alternativo de criacao."
+          }
+        },
+        {
+          "name": "PATCH /clients/{id}",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+55 11 96666-5555\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients/{{client_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "clients",
+                "{{client_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE /clients/{id}",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients/{{client_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "clients",
+                "{{client_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Availability",
+      "item": [
+        {
+          "name": "POST /availability (cria slot livre)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  pm.collectionVariables.set('availability_id', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"starts_at\": \"2026-10-01T14:00:00Z\",\n  \"ends_at\": \"2026-10-01T15:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/availability",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "availability"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /availability (lista)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/availability",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "availability"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH /availability/{id} (bloquear)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_blocked\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/availability/{{availability_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "availability",
+                "{{availability_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE /availability/{id}",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/availability/{{availability_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "availability",
+                "{{availability_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Appointments",
+      "item": [
+        {
+          "name": "POST /appointments (agenda)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  pm.collectionVariables.set('appointment_id', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client\": {{client_id}},\n  \"starts_at\": \"2026-10-02T14:00:00Z\",\n  \"ends_at\": \"2026-10-02T14:50:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/appointments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments"
+              ]
+            },
+            "description": "`client` precisa pertencer ao mesmo profissional (senao 400). Nao pode sobrepor outro agendamento existente do profissional (banco garante isso, nao so a validacao)."
+          }
+        },
+        {
+          "name": "GET /appointments (lista)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/appointments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /appointments/{id}",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "{{appointment_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH /appointments/{id}/confirm",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}/confirm",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "{{appointment_id}}",
+                "confirm"
+              ]
+            },
+            "description": "Transicoes validas: PENDING->CONFIRMED->COMPLETED, ou CONFIRMED/PENDING->CANCELLED. Usar confirm OU cancel, nao os dois em sequencia no mesmo agendamento."
+          }
+        },
+        {
+          "name": "PATCH /appointments/{id}/complete",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}/complete",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "{{appointment_id}}",
+                "complete"
+              ]
+            },
+            "description": "So funciona depois de confirm (PENDING->COMPLETED direto da 400)."
+          }
+        },
+        {
+          "name": "PATCH /appointments/{id}/cancel (alternativa ao complete)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}/cancel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "{{appointment_id}}",
+                "cancel"
+              ]
+            },
+            "description": "Nao rode isso depois de ja ter chamado /complete no mesmo agendamento - vai dar 400 (CANCELLED e COMPLETED nao tem mais transicao)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. Notifications",
+      "item": [
+        {
+          "name": "GET /notifications (lista, so as proprias)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const items = pm.response.json().data;",
+                  "  if (items && items.length > 0) {",
+                  "    pm.collectionVariables.set('notification_id', items[0].id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
+            },
+            "description": "Salva o id da primeira notificacao em {{notification_id}}, se existir alguma (ex.: gerada ao criar um lead publico na pasta 8)."
+          }
+        },
+        {
+          "name": "PATCH /notifications/{id}/read",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications/{{notification_id}}/read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "{{notification_id}}",
+                "read"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH /notifications/read-all",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications/read-all",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "read-all"
+              ]
+            },
+            "description": "Retorna {\"data\": {\"updated\": N}} - N e quantas foram marcadas como lidas agora (idempotente: rodar de novo retorna 0)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "13. Audit Logs (somente ADMIN)",
+      "item": [
+        {
+          "name": "GET /audit-logs (lista)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const items = pm.response.json().data;",
+                  "  if (items && items.length > 0) {",
+                  "    pm.collectionVariables.set('audit_log_id', items[0].id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/audit-logs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "audit-logs"
+              ]
+            },
+            "description": "THERAPIST recebe 403 aqui. Salva o id da primeira linha em {{audit_log_id}} automaticamente."
+          }
+        },
+        {
+          "name": "GET /audit-logs/{id}",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/audit-logs/{{audit_log_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "audit-logs",
+                "{{audit_log_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "14. Dashboard",
+      "item": [
+        {
+          "name": "GET /dashboard",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/dashboard",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard"
+              ]
+            },
+            "description": "Mesmo payload de /dashboard/metrics. THERAPIST ve so os proprios numeros; ADMIN ve o total da plataforma."
+          }
+        },
+        {
+          "name": "GET /dashboard/metrics",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{therapist_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/dashboard/metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard",
+                "metrics"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "15. Docs",
+      "item": [
+        {
+          "name": "Swagger UI (abrir no navegador)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/schema/swagger-ui/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "schema",
+                "swagger-ui",
+                ""
+              ]
+            },
+            "description": "Contrato tecnico completo e sempre atualizado (gerado do codigo). Melhor aberto direto no navegador."
+          }
+        }
+      ]
+    }
+  ]
+}
