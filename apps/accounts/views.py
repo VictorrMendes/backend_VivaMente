@@ -42,5 +42,14 @@ class FakeTokenView(APIView):
 
         uid = request.data.get("uid") or f"dev-{uuid.uuid4().hex[:8]}"
         email = request.data.get("email") or f"{uid}@dev.local"
+
+        # A autenticacao Firebase real exige o User local ja provisionado
+        # (ver authentication.py) - esse backdoor simula o que a API interna
+        # de sync (Oauth -> Back) faria antes do usuario logar de verdade.
+        User.objects.update_or_create(
+            firebase_uid=uid,
+            defaults={"email": email, "role": role, "active": True},
+        )
+
         token = create_dev_token(uid, email, role)
         return Response({"token": token, "uid": uid, "email": email, "role": role})

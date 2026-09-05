@@ -26,6 +26,10 @@ jobs:
       DJANGO_SECRET_KEY: ci-secret-key
       DJANGO_DEBUG: "True"
       ALLOWED_ORIGINS: http://localhost:3000
+      # Placeholder - os testes de apps.accounts.tests.test_internal_identity
+      # sobrescrevem esta chave via @override_settings com um par RS256 de
+      # teste; isto so precisa existir pra config/settings/base.py carregar.
+      INTERNAL_SERVICE_JWT_PUBLIC_KEY: "-----BEGIN PUBLIC KEY-----\\nplaceholder\\n-----END PUBLIC KEY-----"
 
     steps:
       - uses: actions/checkout@v4

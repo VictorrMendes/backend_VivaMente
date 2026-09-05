@@ -32,14 +32,19 @@ class FirebaseAuthentication(BaseAuthentication):
         claims = decode_dev_token(token) if settings.DEBUG else None
         if claims is None:
             try:
-                claims = firebase_auth.verify_id_token(token, app=_get_firebase_app())
+                claims = firebase_auth.verify_id_token(
+                    token, app=_get_firebase_app(), check_revoked=True
+                )
             except Exception as exc:
                 raise exceptions.AuthenticationFailed("Token inválido ou expirado") from exc
 
-        user, _ = User.objects.get_or_create(
-            firebase_uid=claims["uid"],
-            defaults={"email": claims.get("email", ""), "role": claims.get("role", User.THERAPIST)},
-        )
+        # A role de negocio vem sempre do User local, nunca da claim do
+        # Firebase - o Oauth e quem decide/propaga role via API interna
+        # (apps.accounts.internal_views), o token do usuario final so prova
+        # identidade.
+        user = User.objects.filter(firebase_uid=claims["uid"]).first()
+        if user is None or not user.active:
+            raise exceptions.AuthenticationFailed("Usuário não autorizado.")
         return (user, None)
 
     def authenticate_header(self, request):

@@ -7,6 +7,13 @@ from apps.accounts.models import User
 
 class MeEndpointTests(APITestCase):
     def _auth(self, role="THERAPIST", uid="dev-user-1", email="user@teste.com"):
+        # A autenticacao nunca mais provisiona o User localmente (isso e
+        # papel da API interna de sync do Oauth) - o teste simula que o
+        # usuario ja foi sincronizado antes de logar.
+        User.objects.update_or_create(
+            firebase_uid=uid,
+            defaults={"email": email, "role": role, "active": True},
+        )
         token = create_dev_token(uid, email, role)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
         return token
@@ -21,16 +28,52 @@ class MeEndpointTests(APITestCase):
         self.assertEqual(response.status_code, 401)
 
     @override_settings(DEBUG=True)
-    def test_dev_token_provisions_user_lazily(self):
-        self._auth(role="ADMIN", uid="dev-admin-1", email="admin@teste.com")
+    def test_me_rejects_token_without_local_user(self):
+        token = create_dev_token("ghost-uid", "ghost@teste.com", "THERAPIST")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        response = self.client.get("/api/v1/me")
+
+        self.assertEqual(response.status_code, 401)
         self.assertEqual(User.objects.count(), 0)
+
+    @override_settings(DEBUG=True)
+    def test_me_rejects_inactive_local_user(self):
+        User.objects.create(
+            firebase_uid="inactive-uid",
+            email="x@teste.com",
+            role="THERAPIST",
+            active=False,
+        )
+        token = create_dev_token("inactive-uid", "x@teste.com", "THERAPIST")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        response = self.client.get("/api/v1/me")
+
+        self.assertEqual(response.status_code, 401)
+
+    @override_settings(DEBUG=True)
+    def test_me_returns_local_user_after_dev_provisioning(self):
+        self._auth(role="ADMIN", uid="dev-admin-1", email="admin@teste.com")
 
         response = self.client.get("/api/v1/me")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(User.objects.count(), 1)
         self.assertEqual(response.json()["data"]["role"], "ADMIN")
         self.assertEqual(response.json()["data"]["firebase_uid"], "dev-admin-1")
+
+    @override_settings(DEBUG=True)
+    def test_fake_token_endpoint_provisions_local_user(self):
+        response = self.client.post(
+            "/api/v1/dev/fake-token",
+            {"role": "ADMIN", "uid": "dev-admin-2", "email": "admin2@teste.com"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        user = User.objects.get(firebase_uid="dev-admin-2")
+        self.assertEqual(user.role, "ADMIN")
+        self.assertTrue(user.active)
 
     @override_settings(DEBUG=True)
     def test_me_patch_updates_email(self):

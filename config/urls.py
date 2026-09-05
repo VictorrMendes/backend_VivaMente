@@ -1,9 +1,10 @@
-from django.conf import settings
 from django.contrib import admin
 from django.db import connection
 from django.http import JsonResponse
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+
+from apps.accounts.views import FakeTokenView
 
 from .dashboard import DashboardMetricsView
 
@@ -44,9 +45,8 @@ urlpatterns = [
     path("api/v1/", include("apps.audit.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/schema/swagger-ui/", SpectacularSwaggerView.as_view(url_name="schema")),
+    # Sempre registrada; FakeTokenView.post() ja recusa (403) fora de DEBUG
+    # em tempo de request - registrar condicionalmente aqui (import-time)
+    # e fragil sob override_settings(DEBUG=...) em testes.
+    path("api/v1/dev/fake-token", FakeTokenView.as_view()),
 ]
-
-if settings.DEBUG:
-    from apps.accounts.views import FakeTokenView
-
-    urlpatterns += [path("api/v1/dev/fake-token", FakeTokenView.as_view())]

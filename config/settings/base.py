@@ -135,3 +135,11 @@ LOGGING = {
 }
 
 FIREBASE_CREDENTIALS_PATH = env("FIREBASE_CREDENTIALS_PATH", default=None)
+
+# Chave publica (PEM) usada para validar o JWT de servico (RS256) da API
+# interna de sync de identidade (apps.accounts.internal_auth). O Oauth
+# assina com a chave privada correspondente - o Back nunca ve a privada,
+# entao mesmo comprometido nao consegue forjar um token do Oauth.
+INTERNAL_SERVICE_JWT_PUBLIC_KEY = env("INTERNAL_SERVICE_JWT_PUBLIC_KEY").replace(
+    "\\n", "\n"
+)
