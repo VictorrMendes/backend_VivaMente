@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 
 from apps.audit.services import log_action
 from config.responses import envelope
+from config.schema import ProblemSerializer
 
 from .internal_auth import HasIdentitySyncScope, ServiceJWTAuthentication
 from .models import IdentitySyncRequestLog, User
@@ -81,7 +82,7 @@ class IdentityUserSyncView(APIView):
             201: UserSerializer,
             200: UserSerializer,
             204: None,
-            409: None,
+            409: ProblemSerializer,
         },
         description=(
             "Uso exclusivo do servico Oauth (JWT de servico, "
@@ -175,7 +176,7 @@ class IdentityUserSyncView(APIView):
         tags=["internal-identity-sync"],
         parameters=_INTERNAL_HEADERS,
         request=IdentitySyncDeleteSerializer,
-        responses={200: None, 204: None, 409: None},
+        responses={200: None, 204: None, 409: ProblemSerializer},
         description=(
             "Uso exclusivo do servico Oauth. Desativa o User local "
             "(nunca apaga fisicamente) de forma idempotente."

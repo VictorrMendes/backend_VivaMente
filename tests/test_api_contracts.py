@@ -23,6 +23,13 @@ class UnhandledExceptionContractTests(SimpleTestCase):
         self.assertEqual(response.data["status"], 500)
         self.assertNotIn("segredo interno", response.data["detail"])
 
+    def test_unhandled_exception_does_not_log_sensitive_message_or_traceback(self):
+        with self.assertLogs("api.errors", level="ERROR") as captured:
+            rfc9457_exception_handler(ValueError("conteudo-clinico-sigiloso"), {})
+        self.assertNotIn("conteudo-clinico-sigiloso", str(captured.output))
+        self.assertIsNone(captured.records[0].exc_info)
+        self.assertIn("ValueError", captured.output[0])
+
 
 class ErrorContractTests(AuthenticatedAPITestCase):
     """docs/back.md secao 5: todo erro segue RFC 9457. Isso e um contrato

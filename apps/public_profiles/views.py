@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -18,12 +19,14 @@ class PublicProfessionalProfileView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "public-professional-profile"
 
+    @extend_schema(responses=PublicProfessionalSerializer)
     def get(self, request, slug):
         professional = get_object_or_404(Professional, slug=slug, is_public=True)
         return Response(envelope(PublicProfessionalSerializer(professional).data, request))
 
 
 class PublicProfileUpdateView(APIView):
+    @extend_schema(request=PublicProfileUpdateSerializer, responses=PublicProfessionalSerializer)
     def patch(self, request, pk):
         professional = get_object_or_404(Professional, pk=pk)
         user = request.user

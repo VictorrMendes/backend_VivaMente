@@ -1,4 +1,6 @@
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -36,5 +38,10 @@ def _compute_metrics(user):
 
 
 class DashboardMetricsView(APIView):
+    @extend_schema(responses=inline_serializer("DashboardMetrics", fields={
+        "new_leads": serializers.IntegerField(),
+        "active_clients": serializers.IntegerField(),
+        "sessions_this_month": serializers.IntegerField(),
+    }))
     def get(self, request):
         return Response(envelope(_compute_metrics(request.user), request))

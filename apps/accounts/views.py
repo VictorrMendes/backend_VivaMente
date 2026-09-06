@@ -1,6 +1,8 @@
 import uuid
 
 from django.conf import settings
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -14,9 +16,15 @@ from .serializers import UserSerializer, UserUpdateSerializer
 
 
 class MeView(APIView):
+    @extend_schema(
+        responses=UserSerializer,
+        description="Usuario local autenticado. Nao e o perfil profissional nem o perfil publico.",
+    )
     def get(self, request):
         return Response(envelope(UserSerializer(request.user).data, request))
 
+    @extend_schema(request=UserUpdateSerializer, responses=UserSerializer,
+                   description="Atualiza apenas o email local. Demais campos sao ignorados.")
     def patch(self, request):
         serializer = UserUpdateSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -31,7 +39,20 @@ class FakeTokenView(APIView):
 
     permission_classes = [AllowAny]
     authentication_classes = []
+    envelope_response = False
 
+    @extend_schema(
+        description="Somente DEBUG; retorna 403 fora de desenvolvimento. Resposta sem envelope.",
+        request=inline_serializer("DevTokenRequest", fields={
+            "uid": serializers.CharField(required=False),
+            "email": serializers.CharField(required=False),
+            "role": serializers.ChoiceField(choices=[User.ADMIN, User.THERAPIST], required=False),
+        }),
+        responses={200: inline_serializer("DevTokenResponse", fields={
+            "token": serializers.CharField(), "uid": serializers.CharField(),
+            "email": serializers.CharField(), "role": serializers.CharField(),
+        }), 400: inline_serializer("DevTokenError", fields={"detail": serializers.CharField()})},
+    )
     def post(self, request):
         if not settings.DEBUG:
             raise PermissionDenied("Disponível apenas em DEBUG.")

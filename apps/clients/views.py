@@ -16,6 +16,8 @@ class ClientViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
     def get_serializer_class(self):
         if self.action in ("list", "retrieve"):
             return ClientSerializer
+        if getattr(self, "swagger_fake_view", False):
+            return ClientWriteSerializer
         if self.request.user.role != User.ADMIN:
             return ClientSelfWriteSerializer
         return ClientWriteSerializer

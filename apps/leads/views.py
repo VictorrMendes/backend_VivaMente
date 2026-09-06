@@ -1,3 +1,5 @@
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -30,6 +32,8 @@ class LeadViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
     def get_serializer_class(self):
         if self.action in ("list", "retrieve"):
             return LeadSerializer
+        if getattr(self, "swagger_fake_view", False):
+            return LeadWriteSerializer
         if self.request.user.role != User.ADMIN:
             return LeadSelfWriteSerializer
         return LeadWriteSerializer
@@ -46,6 +50,7 @@ class LeadViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
         log_action(self.request.user, "delete", "lead", instance.id)
         instance.delete()
 
+    @extend_schema(request=LeadStatusSerializer, responses=LeadSerializer)
     @action(detail=True, methods=["patch"], url_path="status")
     def set_status(self, request, pk=None):
         lead = self.get_object()
@@ -55,6 +60,7 @@ class LeadViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
         log_action(request.user, "status_change", "lead", lead.id, {"status": lead.status})
         return Response(envelope(LeadSerializer(lead).data, request))
 
+    @extend_schema(request=None, responses={201: ClientSerializer})
     @action(detail=True, methods=["post"])
     def convert(self, request, pk=None):
         lead = self.get_object()
@@ -68,6 +74,12 @@ class PublicAppointmentRequestView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "public-appointment-requests"
 
+    @extend_schema(request=PublicAppointmentRequestSerializer, responses={201: inline_serializer(
+        "PublicAppointmentRequestResult", fields={
+            "id": serializers.IntegerField(),
+            "status": serializers.ChoiceField(choices=Lead.STATUS_CHOICES),
+        },
+    )})
     def post(self, request):
         serializer = PublicAppointmentRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

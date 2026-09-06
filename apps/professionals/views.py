@@ -16,6 +16,10 @@ from .serializers import (
 
 
 class ProfessionalViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
+    """ADMIN cria/exclui. THERAPIST le e edita apenas seu perfil; user e imutavel
+    para THERAPIST. Leituras retornam specialties e user_email; escritas
+    retornam specialty_ids (contrato existente preservado).
+    """
     professional_lookup = "user"
     queryset = Professional.objects.all()
     filterset_fields = ["is_public"]
@@ -24,6 +28,8 @@ class ProfessionalViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet)
     def get_serializer_class(self):
         if self.action in ("list", "retrieve"):
             return ProfessionalSerializer
+        if getattr(self, "swagger_fake_view", False):
+            return ProfessionalWriteSerializer
         if self.action in ("update", "partial_update") and self.request.user.role != User.ADMIN:
             return ProfessionalSelfUpdateSerializer
         return ProfessionalWriteSerializer

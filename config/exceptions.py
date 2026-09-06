@@ -52,9 +52,9 @@ def rfc9457_exception_handler(exc, context):
     if response is None:
         # Excecao nao mapeada pelo DRF (bug real, nao um erro de cliente).
         # Nunca deixa o Django devolver a pagina de debug em HTML pra um
-        # cliente de API - loga o stack trace pro request_id e responde
-        # RFC 9457 generico, sem detalhe interno.
-        logger.exception("Erro interno nao tratado", extra={"request_id": request_id})
+        # cliente de API. Mensagens de excecao/tracebacks podem conter
+        # input sensivel: registra somente o tipo e o request_id.
+        logger.error("Erro interno nao tratado (%s)", type(exc).__name__, extra={"request_id": request_id})
         return Response(
             {
                 "type": PROBLEM_TYPE_BASE + "internal-error",

@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.professionals.models import Professional, Specialty
@@ -23,6 +24,7 @@ class PublicProfessionalSerializer(serializers.ModelSerializer):
         fields = ["slug", "full_name", "bio", "photo_url", "registration", "specialties", "services"]
         read_only_fields = fields
 
+    @extend_schema_field(PublicServiceSerializer(many=True))
     def get_services(self, obj):
         # ponytail: cap simples em vez de paginacao de verdade pra esse
         # sub-recurso aninhado; se um profissional passar disso, promover

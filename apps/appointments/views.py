@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -32,6 +33,8 @@ class AvailabilitySlotViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelView
     def get_serializer_class(self):
         if self.action in ("list", "retrieve"):
             return AvailabilitySlotSerializer
+        if getattr(self, "swagger_fake_view", False):
+            return AvailabilitySlotWriteSerializer
         if self.request.user.role != User.ADMIN:
             return AvailabilitySlotSelfWriteSerializer
         return AvailabilitySlotWriteSerializer
@@ -46,6 +49,12 @@ class AvailabilitySlotViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelView
 
 
 class AppointmentViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
+    """Agenda interna. Filtros: professional e client (IDs), status.
+
+    Use ordering=starts_at ou ordering=-starts_at. Os filtros restringem
+    o escopo autorizado; nunca concedem acesso a outro terapeuta.
+    professional_id e client_id nao sao aliases de filtros.
+    """
     queryset = Appointment.objects.select_related("professional", "client", "service")
     filterset_fields = ["status", "professional", "client"]
     ordering_fields = ["starts_at", "status"]
@@ -53,6 +62,8 @@ class AppointmentViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
     def get_serializer_class(self):
         if self.action in ("list", "retrieve"):
             return AppointmentSerializer
+        if getattr(self, "swagger_fake_view", False):
+            return AppointmentWriteSerializer
         if self.request.user.role != User.ADMIN:
             return AppointmentSelfWriteSerializer
         return AppointmentWriteSerializer
@@ -64,14 +75,17 @@ class AppointmentViewSet(ProfessionalScopedQuerysetMixin, EnvelopeModelViewSet):
     def perform_update(self, serializer):
         services.update_appointment(serializer)
 
+    @extend_schema(request=None, responses=AppointmentSerializer)
     @action(detail=True, methods=["patch"])
     def confirm(self, request, pk=None):
         return self._transition(request, Appointment.CONFIRMED)
 
+    @extend_schema(request=None, responses=AppointmentSerializer)
     @action(detail=True, methods=["patch"])
     def cancel(self, request, pk=None):
         return self._transition(request, Appointment.CANCELLED)
 
+    @extend_schema(request=None, responses=AppointmentSerializer)
     @action(detail=True, methods=["patch"])
     def complete(self, request, pk=None):
         return self._transition(request, Appointment.COMPLETED)
@@ -89,6 +103,7 @@ class PublicAvailableSlotsView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "public-available-slots"
 
+    @extend_schema(responses=AvailabilitySlotSerializer(many=True))
     def get(self, request, slug):
         professional = get_object_or_404(Professional, slug=slug, is_public=True)
         slots = services.list_free_slots(professional)

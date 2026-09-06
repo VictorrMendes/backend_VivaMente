@@ -31,7 +31,7 @@ class RequestIDMiddleware:
             access_logger.info(
                 "%s %s -> %s (%.1fms)",
                 request.method,
-                request.get_full_path(),
+                request.path,
                 response.status_code,
                 duration_ms,
             )

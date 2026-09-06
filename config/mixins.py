@@ -28,6 +28,8 @@ class ProfessionalScopedQuerysetMixin:
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        if getattr(self, "swagger_fake_view", False):
+            return queryset.none()
         user = self.request.user
         if user.role == User.ADMIN:
             return queryset
