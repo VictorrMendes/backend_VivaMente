@@ -44,6 +44,11 @@ class Appointment(models.Model):
         (COMPLETED, "Concluído"),
     ]
 
+    ONLINE = "ONLINE"
+    IN_PERSON = "IN_PERSON"
+    HYBRID = "HYBRID"
+    MODALITY_CHOICES = [(ONLINE, "Online"), (IN_PERSON, "Presencial"), (HYBRID, "Híbrido")]
+
     professional = models.ForeignKey(Professional, on_delete=models.CASCADE, related_name="appointments")
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="appointments")
     service = models.ForeignKey(
@@ -52,6 +57,10 @@ class Appointment(models.Model):
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
+    modality = models.CharField(max_length=20, choices=MODALITY_CHOICES, blank=True, default="")
+    call_link = models.URLField(blank=True, default="")
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    notes = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

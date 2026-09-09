@@ -38,3 +38,21 @@ class ClientIsolationTests(AuthenticatedAPITestCase):
         self.login(self.admin)
         response = self.client.get("/api/v1/clients")
         self.assertEqual(len(response.json()["data"]), 2)
+
+    def test_creates_client_with_administrative_fields(self):
+        self.login(self.therapist_a)
+        response = self.client.post(
+            "/api/v1/clients",
+            {
+                "name": "Cliente Completo",
+                "birth_date": "1990-05-20",
+                "document": "123.456.789-00",
+                "administrative_notes": "Prefere pagamento via Pix.",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        data = response.json()["data"]
+        self.assertEqual(data["birth_date"], "1990-05-20")
+        self.assertEqual(data["document"], "123.456.789-00")
+        self.assertEqual(data["administrative_notes"], "Prefere pagamento via Pix.")

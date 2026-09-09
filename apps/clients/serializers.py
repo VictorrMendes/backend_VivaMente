@@ -2,7 +2,19 @@ from rest_framework import serializers
 
 from .models import Client
 
-CLIENT_FIELDS = ["id", "professional", "lead", "name", "email", "phone", "created_at", "updated_at"]
+CLIENT_FIELDS = [
+    "id",
+    "professional",
+    "lead",
+    "name",
+    "email",
+    "phone",
+    "birth_date",
+    "document",
+    "administrative_notes",
+    "created_at",
+    "updated_at",
+]
 
 
 class ClientSerializer(serializers.ModelSerializer):

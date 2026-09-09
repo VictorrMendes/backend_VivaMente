@@ -10,6 +10,12 @@ class Client(models.Model):
     name = models.CharField(max_length=200)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=30, blank=True)
+    birth_date = models.DateField(null=True, blank=True)
+    document = models.CharField(max_length=20, blank=True)
+    # Dados administrativos (ex.: "prefere pagar em dinheiro") - nunca
+    # conteudo clinico. Prontuario de verdade mora em apps.clinical_records,
+    # isolado com regras de acesso mais restritas.
+    administrative_notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

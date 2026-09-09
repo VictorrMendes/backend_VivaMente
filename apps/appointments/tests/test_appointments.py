@@ -93,6 +93,54 @@ class AppointmentOwnershipTests(AuthenticatedAPITestCase):
         self.assertEqual(len(response.json()["data"]), 1)
 
 
+class AppointmentSessionDetailsTests(AuthenticatedAPITestCase):
+    def setUp(self):
+        self.therapist = User.objects.create(firebase_uid="ther-a", email="a@teste.com", role=User.THERAPIST)
+        self.prof = Professional.objects.create(user=self.therapist, slug="terapeuta-a", full_name="A")
+        self.client_obj = Client.objects.create(professional=self.prof, name="Cliente A")
+        self.now = timezone.now()
+        self.login(self.therapist)
+
+    def _payload(self, **extra):
+        return {
+            "client": self.client_obj.id,
+            "starts_at": self.now.isoformat(),
+            "ends_at": (self.now + timedelta(minutes=50)).isoformat(),
+            **extra,
+        }
+
+    def test_creates_appointment_with_modality_link_price_notes(self):
+        response = self.client.post(
+            "/api/v1/appointments",
+            self._payload(
+                modality="ONLINE",
+                call_link="https://meet.example.com/sala-1",
+                price="150.00",
+                notes="Cliente pediu para remarcar caso chova.",
+            ),
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        data = response.json()["data"]
+        self.assertEqual(data["modality"], "ONLINE")
+        self.assertEqual(data["call_link"], "https://meet.example.com/sala-1")
+        self.assertEqual(data["price"], "150.00")
+        self.assertEqual(data["notes"], "Cliente pediu para remarcar caso chova.")
+
+    def test_fields_are_optional(self):
+        response = self.client.post("/api/v1/appointments", self._payload(), format="json")
+        self.assertEqual(response.status_code, 201)
+        data = response.json()["data"]
+        self.assertEqual(data["modality"], "")
+        self.assertIsNone(data["price"])
+
+    def test_rejects_invalid_call_link(self):
+        response = self.client.post(
+            "/api/v1/appointments", self._payload(call_link="nao-e-uma-url"), format="json"
+        )
+        self.assertEqual(response.status_code, 400)
+
+
 class AppointmentTransitionTests(AuthenticatedAPITestCase):
     def setUp(self):
         self.therapist = User.objects.create(firebase_uid="ther-a", email="a@teste.com", role=User.THERAPIST)

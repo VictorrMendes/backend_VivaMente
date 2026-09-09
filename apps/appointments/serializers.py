@@ -44,6 +44,10 @@ APPOINTMENT_FIELDS = [
     "starts_at",
     "ends_at",
     "status",
+    "modality",
+    "call_link",
+    "price",
+    "notes",
     "created_at",
 ]
 
