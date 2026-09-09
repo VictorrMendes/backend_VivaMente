@@ -54,6 +54,11 @@ class Appointment(models.Model):
     service = models.ForeignKey(
         Service, on_delete=models.SET_NULL, null=True, blank=True, related_name="appointments"
     )
+    # Referencia por string pra evitar import circular: apps.packages.models
+    # nao importa Appointment (ver comentario la sobre used_sessions).
+    package = models.ForeignKey(
+        "packages.Package", on_delete=models.SET_NULL, null=True, blank=True, related_name="appointments"
+    )
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
