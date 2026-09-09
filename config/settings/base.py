@@ -31,6 +31,8 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.audit",
     "apps.clinical_records",
+    "apps.packages",
+    "apps.payments",
 ]
 
 MIDDLEWARE = [
@@ -126,6 +128,8 @@ SPECTACULAR_SETTINGS = {
         "LeadStatusEnum": "apps.leads.models.Lead.STATUS_CHOICES",
         "ServiceModalityEnum": "apps.services.models.Service.MODALITY_CHOICES",
         "AppointmentModalityEnum": "apps.appointments.models.Appointment.MODALITY_CHOICES",
+        "PackageStatusEnum": "apps.packages.models.Package.STATUS_CHOICES",
+        "PaymentStatusEnum": "apps.payments.models.Payment.STATUS_CHOICES",
     },
 }
 
