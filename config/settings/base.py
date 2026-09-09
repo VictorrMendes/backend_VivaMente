@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "apps.public_profiles",
     "apps.notifications",
     "apps.audit",
+    "apps.clinical_records",
 ]
 
 MIDDLEWARE = [
@@ -123,6 +124,8 @@ SPECTACULAR_SETTINGS = {
         "IdentityRoleEnum": ["ADMIN", "THERAPIST"],
         "AppointmentStatusEnum": "apps.appointments.models.Appointment.STATUS_CHOICES",
         "LeadStatusEnum": "apps.leads.models.Lead.STATUS_CHOICES",
+        "ServiceModalityEnum": "apps.services.models.Service.MODALITY_CHOICES",
+        "AppointmentModalityEnum": "apps.appointments.models.Appointment.MODALITY_CHOICES",
     },
 }
 
