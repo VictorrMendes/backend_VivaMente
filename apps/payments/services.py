@@ -3,6 +3,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import User
+from apps.notifications.models import Notification
 from config.mixins import resolve_own_professional_or_403
 
 from .models import Payment
@@ -45,6 +46,13 @@ def create_payment(user, serializer):
     with transaction.atomic():
         serializer.save(**extra)
         _generate_receipt_number(serializer.instance)
+
+    if serializer.instance.status == Payment.PENDING:
+        Notification.objects.create(
+            user=professional.user,
+            title="Novo pagamento pendente",
+            body=f'Pagamento de R$ {serializer.instance.amount} pendente para {client.name}.',
+        )
 
 
 def update_payment(serializer):

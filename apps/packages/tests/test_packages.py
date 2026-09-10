@@ -115,6 +115,15 @@ class PackageBalanceTests(AuthenticatedAPITestCase):
         self.assertEqual(data["remaining_sessions"], 1)
         self.assertTrue(Appointment.objects.filter(id=appointment_id, package=self.package).exists())
 
+    def test_low_balance_notifies_professional(self):
+        from apps.notifications.models import Notification
+
+        # total_sessions=2: apos a 1a reserva sobra 1 -> deve notificar.
+        self._book(1)
+        self.assertTrue(
+            Notification.objects.filter(user=self.therapist, title="Pacote quase no fim").exists()
+        )
+
     def test_blocks_booking_when_no_balance_left(self):
         self._book(1)
         self._book(2)

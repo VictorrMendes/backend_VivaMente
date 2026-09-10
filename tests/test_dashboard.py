@@ -62,3 +62,40 @@ class DashboardMetricsTests(AuthenticatedAPITestCase):
     def test_requires_authentication(self):
         response = self.client.get("/api/v1/dashboard/metrics")
         self.assertEqual(response.status_code, 401)
+
+    def test_appointments_today_and_upcoming(self):
+        future = timezone.now() + timedelta(days=1)
+        future_appt = Appointment.objects.create(
+            professional=self.prof_a, client=self.client_a, starts_at=future, ends_at=future + timedelta(hours=1)
+        )
+        self.login(self.therapist_a)
+        data = self.client.get("/api/v1/dashboard/metrics").json()["data"]
+        # o appointment do setUp comeca em "now" (no passado por alguns ms
+        # quando a view roda seu proprio timezone.now()) - so garantimos que
+        # ele conta em "hoje" e que o de amanha aparece em "proximos".
+        self.assertEqual(data["appointments_today"], 1)
+        upcoming_ids = {item["id"] for item in data["upcoming_appointments"]}
+        self.assertIn(future_appt.id, upcoming_ids)
+
+    def test_pending_payments_and_monthly_summary_shape(self):
+        from apps.payments.models import Payment
+
+        Payment.objects.create(
+            professional=self.prof_a, client=self.client_a, amount="80.00",
+            status=Payment.PENDING, receipt_number="RD1",
+        )
+        self.login(self.therapist_a)
+        data = self.client.get("/api/v1/dashboard/metrics").json()["data"]
+        self.assertEqual(data["pending_payments"], {"count": 1, "total": "80.00"})
+        self.assertIn("received_total", data["monthly_summary"])
+        self.assertIn("sessions_count", data["monthly_summary"])
+
+    def test_recent_activity_reflects_own_actions_without_sensitive_data(self):
+        self.login(self.therapist_a)
+        self.client.post(
+            "/api/v1/clients", {"name": "Novo Cliente", "email": "novo@teste.com"}, format="json"
+        )
+        data = self.client.get("/api/v1/dashboard/metrics").json()["data"]
+        actions = {(item["action"], item["resource"]) for item in data["recent_activity"]}
+        self.assertIn(("create", "client"), actions)
+        self.assertNotIn("novo@teste.com", str(data["recent_activity"]))

@@ -68,6 +68,30 @@ class PaymentCRUDTests(AuthenticatedAPITestCase):
         response = self.client.get("/api/v1/payments")
         self.assertEqual(len(response.json()["data"]), 2)
 
+    def test_creating_pending_payment_notifies_professional(self):
+        from apps.notifications.models import Notification
+
+        self.login(self.therapist_a)
+        self.client.post(
+            "/api/v1/payments", {"client": self.client_a.id, "amount": "90.00"}, format="json"
+        )
+        self.assertTrue(
+            Notification.objects.filter(user=self.therapist_a, title="Novo pagamento pendente").exists()
+        )
+
+    def test_creating_already_paid_payment_does_not_notify_pending(self):
+        from apps.notifications.models import Notification
+
+        self.login(self.therapist_a)
+        self.client.post(
+            "/api/v1/payments",
+            {"client": self.client_a.id, "amount": "90.00", "status": "PAID"},
+            format="json",
+        )
+        self.assertFalse(
+            Notification.objects.filter(user=self.therapist_a, title="Novo pagamento pendente").exists()
+        )
+
 
 class PaymentStatusTransitionTests(AuthenticatedAPITestCase):
     def setUp(self):

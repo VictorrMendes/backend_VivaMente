@@ -4,6 +4,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import User
+from apps.notifications.models import Notification
 from apps.packages.models import Package
 from config.mixins import resolve_own_professional_or_403
 
@@ -48,6 +49,16 @@ def _validate_package(professional, client, package):
         raise ValidationError({"package": "Pacote sem sessões restantes."})
 
 
+def _notify_if_package_low(package):
+    package.refresh_from_db()
+    if package.status == Package.ACTIVE and package.remaining_sessions <= 1:
+        Notification.objects.create(
+            user=package.professional.user,
+            title="Pacote quase no fim",
+            body=f'O pacote "{package.name}" tem {package.remaining_sessions} sessão(ões) restante(s).',
+        )
+
+
 def _validate_no_overlap(professional, starts_at, ends_at, exclude_id=None):
     conflicts = Appointment.objects.filter(
         professional=professional, starts_at__lt=ends_at, ends_at__gt=starts_at
@@ -81,6 +92,9 @@ def create_appointment(user, serializer):
             serializer.save(professional=professional)
     except IntegrityError:
         raise ValidationError(OVERLAP_ERROR)
+
+    if package is not None:
+        _notify_if_package_low(package)
 
 
 def update_appointment(serializer):
